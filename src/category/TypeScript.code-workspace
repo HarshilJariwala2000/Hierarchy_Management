@@ -1,0 +1,67 @@
+{
+	"folders": [
+		{
+			"path": "..\\..\\..\\..\\TypeScript"
+		},
+		{
+			"path": "..\\..\\..\\..\\DiscordBot"
+		},
+		{
+			"path": "..\\..\\..\\..\\gRPC"
+		},
+		{
+			"path": "..\\..\\..\\..\\NewNestJS"
+		},
+		{
+			"path": "..\\..\\..\\..\\Placements"
+		},
+		{
+			"path": "..\\..\\..\\..\\NodeGRPC"
+		},
+		{
+			"path": "..\\..\\..\\..\\Benchmark"
+		},
+		{
+			"path": "..\\..\\..\\..\\auth0-react-workshop"
+		},
+		{
+			"path": "..\\..\\..\\..\\FileUploadBenchmark"
+		},
+		{
+			"path": "..\\..\\..\\..\\AuthReact"
+		},
+		{
+			"path": "..\\..\\..\\..\\gRPCApis"
+		},
+		{
+			"path": "..\\..\\..\\..\\protojson"
+		},
+		{
+			"path": "..\\..\\..\\..\\rpcrest"
+		},
+		{
+			"path": "..\\..\\..\\..\\gRPC1"
+		},
+		{
+			"path": "..\\..\\..\\..\\JavaScript"
+		},
+		{
+			"path": "..\\..\\..\\..\\PIM"
+		},
+		{
+			"path": "..\\..\\..\\..\\productService"
+		},
+		{
+			"path": "..\\..\\..\\..\\postgres_nest"
+		},
+		{
+			"path": "..\\..\\..\\..\\DSA"
+		},
+		{
+			"path": "..\\..\\..\\..\\PIM2"
+		},
+		{
+			"path": "..\\..\\.."
+		}
+	]
+}
