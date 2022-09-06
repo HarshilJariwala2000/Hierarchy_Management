@@ -8,8 +8,8 @@ import {
   
   @Entity()
   export class Marketplaces{
-    @PrimaryGeneratedColumn("uuid")
-    marketplace_name_id:string
+    @PrimaryGeneratedColumn()
+    marketplace_name_id:number
 
     @PrimaryColumn()
     marketplace_name:string
@@ -18,10 +18,16 @@ import {
 @Entity()
 export class MarketplaceCategory{
     @PrimaryGeneratedColumn()
-    marketplace_category_id:string
+    marketplace_category_id:number
 
     @Column()
     category_name: string
+
+    @Column()
+    marketplace_name_id:number
+
+    @Column()
+    marketplace_name:string
 
     @ManyToOne(()=>Marketplaces,(marketplace)=>marketplace.marketplace_name_id)
     @JoinColumn([
@@ -33,11 +39,8 @@ export class MarketplaceCategory{
     @OneToMany((type) => MarketplaceCategory, (category) => category.parent,{nullable:true})
     children: MarketplaceCategory[]
 
-    @Column()
-    tenant_id:string
-
     @Column({nullable:true})
-    parent_id:string
+    parent_id:number
 
     @ManyToOne((type) => MarketplaceCategory, (category) => category.children,{onUpdate:"CASCADE",onDelete:"CASCADE",nullable:true})
     @JoinColumn({name:'parent_id'})

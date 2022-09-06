@@ -10,8 +10,8 @@ import {
 
   @Entity()
   export class CoreCategory{
-    @PrimaryGeneratedColumn("uuid")
-    core_category_id:string
+    @PrimaryGeneratedColumn()
+    core_category_id:number
 
     @Column()
     category_name:string
@@ -20,7 +20,7 @@ import {
     children: CoreCategory[]
 
     @Column({nullable:true})
-    parent_id:string
+    parent_id:number
 
     @ManyToOne((type) => CoreCategory, (category) => category.children,{onUpdate:"CASCADE",onDelete:"CASCADE",nullable:true})
     @JoinColumn({name:'parent_id'})

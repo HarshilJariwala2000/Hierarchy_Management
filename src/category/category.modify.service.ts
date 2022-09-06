@@ -30,7 +30,7 @@ export class CategoryModifyService {
         @InjectDataSource('tenant') private tenantDataSource: DataSource,
     ) {}
 
-    async getTenantCategoryById(tenantCategoryid:string, tenantId:string){
+    async getTenantCategoryById(tenantCategoryid:number, tenantId:number){
         try{
         const tenantCategory = await this.tenantCategoryRepository.findOne({where:{tenant_category_id:tenantCategoryid, tenant_id:tenantId}, relations:{children:true,parent:true}})
         if(!tenantCategory) throw new RpcException({message:"Category does not exist",status:5})
@@ -40,7 +40,7 @@ export class CategoryModifyService {
         }
     }
 
-    async getCoreCategoryById(coreCategoryid:string){
+    async getCoreCategoryById(coreCategoryid:number){
         try{
             const coreCategory = await this.coreCategoryRepository.findOne({where:{core_category_id:coreCategoryid}, relations:{children:true,parent:true}})
             if(!coreCategory) throw new RpcException({message:"Category does not exist",status:5})
@@ -50,7 +50,7 @@ export class CategoryModifyService {
             }
     }
 
-    async getMarketplaceCategoryById(marketplaceCategoryid:string){
+    async getMarketplaceCategoryById(marketplaceCategoryid:number){
         try{
             const marketplaceCategory = await this.marketplaceCategoryRepository.findOne({where:{marketplace_category_id:marketplaceCategoryid}, relations:{children:true,parent:true}})
             if(!marketplaceCategory) throw new RpcException({message:"Category does not exist",status:5})
@@ -60,13 +60,13 @@ export class CategoryModifyService {
             }
     }
 
-    async canAddLevel(depth:number, tenantId:string){
+    async canAddLevel(depth:number, tenantId:number){
         const levelLimit = await this.tenantHierarchyLevelRepository.findOne({ where: { tenant_id:tenantId } })
         if (depth + 1 >= levelLimit.level) return false
         else return true
     }
 
-    async saveCategory(entityManager:EntityManager, tenantId:string, categoryName:string, parent:TenantCategory | string, depth?:number, isLeaf?:boolean){
+    async saveCategory(entityManager:EntityManager, tenantId:number, categoryName:string, parent:TenantCategory | number, depth?:number, isLeaf?:boolean){
         const category = new TenantCategory()
         category.category_name = categoryName
         category.tenant_id = tenantId
@@ -78,10 +78,9 @@ export class CategoryModifyService {
     }
 
     async check(){
-        const x = [];
-        console.log(x)
-        if(x) throw new HttpException('jf',404)
-        else return "hi"
+       const string = 'Fashion / Men / Women'
+       const x = string.split('/')
+       console.log(x)
     }
 
     async changeIsLeafToFalse(entityManager:EntityManager, category:TenantCategory){
@@ -109,7 +108,7 @@ export class CategoryModifyService {
         }
     }
 
-    async addLevel(tenantCategoryid:string, tenantId:string, categoryName:string){
+    async addLevel(tenantCategoryid:number, tenantId:number, categoryName:string){
         const category:TenantCategory = await this.getTenantCategoryById(tenantCategoryid, tenantId)
         if(!await this.canAddLevel(category.depth, tenantId)) throw new RpcException({message:`Hierarchy Limit Reached`, status:7})
         await this.duplicateCheck(category,categoryName,ADDLEVEL)
@@ -121,7 +120,7 @@ export class CategoryModifyService {
         })
     }
 
-    async addSibling(tenantCategoryid:string, tenantId:string, categoryName:string){
+    async addSibling(tenantCategoryid:number, tenantId:number, categoryName:string){
         const category = await this.getTenantCategoryById(tenantCategoryid,tenantId)
         await this.duplicateCheck(category,categoryName,ADDSIBLING)
         await this.saveCategory(this.tenantDataSource.createEntityManager(), tenantId,categoryName,category.parent,category.depth,true)
@@ -144,12 +143,12 @@ export class CategoryModifyService {
         return depth;  
     }
 
-    async maxCategoryDepth(tenantId:string){
+    async maxCategoryDepth(tenantId:number){
         const depth = await this.tenantDataSource.getRepository(TenantCategory).createQueryBuilder('tenantCategory').where("tenantCategory.tenant_id=:id",{id:tenantId}).select("MAX(tenantCategory.depth)","max").getRawOne()
         return depth.max
     }
 
-    async updateHierarchyLevel(level:number, tenantId:string){
+    async updateHierarchyLevel(level:number, tenantId:number){
         const maxTenantLevel = await this.maxCategoryDepth(tenantId)
         if(maxTenantLevel>level) throw new RpcException({message:`Tenant already have maximum level of ${maxTenantLevel.max+1}`,status:9})
         const tenantHierarchyLevel:TenantHierarchyLevel = {tenant_id:tenantId,level:level}
@@ -157,7 +156,7 @@ export class CategoryModifyService {
         
     }
 
-    async subscribeToMarketplaces(marketplaceNameId:string, tenantId:string){
+    async subscribeToMarketplaces(marketplaceNameId:number, tenantId:number){
         const marketplace = await this.marketplaceRepository.findOne({ where: { marketplace_name_id: marketplaceNameId } })
         const subscribeMarketplace:SubscribedMarketplaces = {
             marketplace_name_id:marketplace.marketplace_name_id,
@@ -167,12 +166,12 @@ export class CategoryModifyService {
         await this.subscribedMarketplacesRepository.save(subscribeMarketplace) 
     }
 
-    async deleteWithSubTree(tenantCategoryId:string, tenantId:string){
+    async deleteWithSubTree(tenantCategoryId:number, tenantId:number){
         await this.tenantCategoryRepository.delete({ tenant_category_id: tenantCategoryId, tenant_id:tenantId })
     }
 
     //Doubtful
-    async deleteWithoutSubTrees(tenantCategoryId:string, tenantId:string){
+    async deleteWithoutSubTrees(tenantCategoryId:number, tenantId:number){
         await this.tenantDataSource.manager.transaction(async(entityManager)=>{
             const category = await this.getTenantCategoryById(tenantCategoryId,tenantId)
             await entityManager.getRepository(TenantCategory).update({ parent_id: tenantCategoryId, tenant_id:tenantId }, { parent: category.parent, depth:category.depth+1 })
@@ -180,7 +179,7 @@ export class CategoryModifyService {
         })
     }
 
-    async editCategoryName(tenantCategoryId:string, tenantId:string, newName:string){
+    async editCategoryName(tenantCategoryId:number, tenantId:number, newName:string){
         const category = await this.getTenantCategoryById(tenantCategoryId, tenantId)
         await this.duplicateCheck(category,newName,ADDSIBLING)
         category.category_name = newName;
@@ -201,10 +200,10 @@ export class CategoryModifyService {
         if(databaseName===MARKETPLACE)  await this.marketplaceCategoryRepository.save(category)   
     }
     
-    async traverseAndInsert(rootCategory:CoreCategory, tenantId:string){
+    async traverseAndInsert(rootCategory:CoreCategory, tenantId:number){
         let nodes:CoreCategory[] = []
         nodes.push(rootCategory)
-        let ids:{id:string, depth:number}[] = [{id:null, depth:-1}]
+        let ids:{id:number, depth:number}[] = [{id:null, depth:-1}]
 
         while(nodes.length!=0){
             let curr = nodes.pop()
@@ -220,7 +219,7 @@ export class CategoryModifyService {
         }
     }
 
-    async inheritFromCore(coreCategoryRootId:string, tenantId:string){
+    async inheritFromCore(coreCategoryRootId:number, tenantId:number){
         const coreCategory = await this.getCoreCategoryById(coreCategoryRootId)
         if(!await this.coreIsRoot(coreCategory)) throw new RpcException({message:`Enter Root Category Id`,status:6})
         await this.traverseAndInsert(coreCategory, tenantId)
