@@ -10,9 +10,18 @@ import * as path from 'path'
 import { RpcException } from '@nestjs/microservices';
 const ADDLEVEL:string = "addLevel"
 const ADDSIBLING:string = "addSibling"
-const CORE = "core"
-const MARKETPLACE = "marketplace"
-const TENANT = "tenant"
+const CORE:string = "core"
+const MARKETPLACE:string = "marketplace"
+const TENANT:string = "tenant"
+interface bulkUploadParentChild{
+    categoryName:string,
+    parentCategoryName:string
+}
+
+interface bulkUploadPath{
+    "Full Hierarchy":string
+}
+
 @Injectable()
 export class CategoryModifyService {
     constructor(
@@ -78,9 +87,62 @@ export class CategoryModifyService {
     }
 
     async check(){
-       const string = 'Fashion / Men / Women'
-       const x = string.split('/')
-       console.log(x)
+        const data = {
+            0:["Electronics9"],
+            1:["Electronics9","Audio9"],
+            2:["Electronics9","Audio9","Bluetooth9"],
+            3:["Electronics9","Audio9","Wired9"],
+            4:["Electronics9","Gaming9"],
+            5:["Electronics9","Gaming9","Keyboard9"],
+            6:["Electronics9","Gaming9","Mouse9"],
+            7:["Fashion9"],
+            8:["Fashion9","Men9"],
+            9:["Fashion9","Men9","Jeans9"],
+            10:["Fashion9","Men9","Shirt9"],
+            11:["Fashion9","Women9"],
+            12:["Fashion9","Women9","Bottom9"],
+            13:["Fashion9","Women9","Top9"]
+        }
+        // console.log(data2.sort())
+        let sameParentLevel:number = 0
+        let ids:number[] = [null];
+        let flag = 0;
+        for(let i=0; i<Object.keys(data).length; i++){
+            console.log('i='+i+'\n')
+            console.log('before sameParentLevel='+sameParentLevel+'\n')
+            if(sameParentLevel===0) ids = [null]
+            if(i!=0) {
+                let k=0
+                while(data[i][sameParentLevel-1]!=data[i-1][sameParentLevel-1]){ 
+                    console.log("Indside -- Loop "+data[i][sameParentLevel-1]+" : "+data[i-1][sameParentLevel-1])
+                    sameParentLevel--
+                    ids.pop()
+                }
+                while(data[i][sameParentLevel]===data[i-1][sameParentLevel]){
+                    console.log("Indside ++ Loop "+data[i][sameParentLevel]+" : "+data[i-1][sameParentLevel])
+                    sameParentLevel++
+                }
+            }
+            console.log('ids='+ids+'\n')
+            console.log('after sameParentLevel='+sameParentLevel+'\n')
+            for(let j=sameParentLevel; j<data[i].length; j++){
+                const x = new TenantCategory()
+                x.category_name = data[i][j]
+                x.parent_id = ids[j]
+                x.depth = j
+                x.tenant_id = 4
+                if(j===data[i].length-1) x.is_leaf=true
+                else x.is_leaf = false
+                const saved = await this.tenantCategoryRepository.save(x)
+                
+                    if(j!=data[i].length-1){
+                        ids.push(saved.tenant_category_id) 
+                    }
+                console.log(saved.tenant_category_id+" : "+saved.category_name+" : "+saved.parent_id+'\n')
+            }
+            if(sameParentLevel===0) sameParentLevel = data[i].length-1
+
+        }
     }
 
     async changeIsLeafToFalse(entityManager:EntityManager, category:TenantCategory){
@@ -170,11 +232,10 @@ export class CategoryModifyService {
         await this.tenantCategoryRepository.delete({ tenant_category_id: tenantCategoryId, tenant_id:tenantId })
     }
 
-    //Doubtful
     async deleteWithoutSubTrees(tenantCategoryId:number, tenantId:number){
         await this.tenantDataSource.manager.transaction(async(entityManager)=>{
             const category = await this.getTenantCategoryById(tenantCategoryId,tenantId)
-            await entityManager.getRepository(TenantCategory).update({ parent_id: tenantCategoryId, tenant_id:tenantId }, { parent: category.parent, depth:category.depth+1 })
+            await entityManager.getRepository(TenantCategory).update({ parent_id: tenantCategoryId, tenant_id:tenantId }, { parent: category.parent, depth:category.depth })
             await entityManager.getRepository(TenantCategory).delete({ tenant_category_id: tenantCategoryId })
         })
     }
@@ -223,6 +284,89 @@ export class CategoryModifyService {
         const coreCategory = await this.getCoreCategoryById(coreCategoryRootId)
         if(!await this.coreIsRoot(coreCategory)) throw new RpcException({message:`Enter Root Category Id`,status:6})
         await this.traverseAndInsert(coreCategory, tenantId)
+    }
+
+    async excelFileReader(){
+        const filePath = path.resolve(__dirname, '../../../categoryTemplate/test.xlsx')
+        const file = excelReader.readFile(filePath)
+        let data = []
+        const sheets = file.SheetNames
+        for(let i = 0; i < sheets.length; i++){
+        const temp = excelReader.utils.sheet_to_json(file.Sheets[file.SheetNames[i]])
+        temp.forEach((res) => {data.push(res)})
+        }
+        return data
+    }
+
+    async removeSubArrays(array:any){
+        // console.log(array[0])
+        let removedSubArrays = {}
+        let k=0
+        for(let i=0;i<Object.keys(array).length-1;i++){
+            // console.log(array[i+1])
+            const isSubArray = array[i].every(val=>array[i+1].includes(val))
+            if(!isSubArray) {
+                removedSubArrays[k] = array[i]
+                k++
+            }
+        }
+        removedSubArrays[k] = array[Object.keys(array).length-1]
+        return removedSubArrays
+
+    }
+
+    async bulkUploadCategoryPathTemaplate(data:bulkUploadPath[], tenantId:number){
+        let category2DArray = {}
+        let pathArray = data.map(x=>x['Full Hierarchy'])
+        for(let i = 0; i<pathArray.length; i++){
+            pathArray[i] = pathArray[i].replace(/\s*>\s*/g,'>').trim()
+            let depth = (pathArray[i].match(/>/g) || []).length-1
+            if(!await this.canAddLevel(depth, tenantId)) throw new RpcException({message:`Max Hierarchy Level Exceeded at Excel Row ${i+1}`, status:6})
+        }
+        pathArray.sort()
+        for(let i = 0; i<pathArray.length; i++){
+           category2DArray[i] = pathArray[i].split('>')
+        }
+        /////////////////////////////
+        const category2DArrayWithSubArraysRemoved = await this.removeSubArrays(category2DArray)
+        console.log(category2DArrayWithSubArraysRemoved)
+        ////////////////////////////
+        let sameParentLevel:number = 0
+        let ids:number[] = [null];
+        let flag = 0;
+        for(let i=0; i<Object.keys(category2DArrayWithSubArraysRemoved).length; i++){
+            if(sameParentLevel===0) ids = [null]
+            if(i!=0) {
+                while(JSON.stringify(category2DArrayWithSubArraysRemoved[i].slice(0,sameParentLevel))!=JSON.stringify(category2DArrayWithSubArraysRemoved[i-1].slice(0,sameParentLevel))){
+                    sameParentLevel--
+                    ids.pop()
+                }
+                while(JSON.stringify(category2DArrayWithSubArraysRemoved[i].slice(0,sameParentLevel+1))===JSON.stringify(category2DArrayWithSubArraysRemoved[i-1].slice(0,sameParentLevel+1))){
+                    sameParentLevel++
+                }
+            }
+            for(let j=sameParentLevel; j<category2DArrayWithSubArraysRemoved[i].length; j++){
+                const x = new TenantCategory()
+                x.category_name = category2DArrayWithSubArraysRemoved[i][j]
+                x.parent_id = ids[j]
+                x.depth = j
+                x.tenant_id = tenantId
+                if(j===category2DArrayWithSubArraysRemoved[i].length-1) x.is_leaf=true
+                else x.is_leaf = false
+                const saved = await this.tenantCategoryRepository.save(x)
+                if(j!=category2DArrayWithSubArraysRemoved[i].length-1) ids.push(saved.tenant_category_id) 
+            }
+            if(sameParentLevel===0) sameParentLevel = category2DArrayWithSubArraysRemoved[i].length-1
+        }       
+    }
+
+    async getPathFromExcel(categoryName:bulkUploadParentChild[], data:bulkUploadParentChild[]){
+        const pathArray = [];
+
+    }
+
+    async bulkUploadCategoryParentChildTemplate(data:bulkUploadParentChild[]){
+
     }
 
 

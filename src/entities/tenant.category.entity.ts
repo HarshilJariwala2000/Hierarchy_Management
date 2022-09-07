@@ -55,6 +55,12 @@ export class TenantCategory {
 
   @Entity()
   export class TenantToCoreMapping{
+
+    @PrimaryGeneratedColumn()
+    tenant_to_core_id:number
+
+    @Column()
+    status:boolean
     
     @ManyToOne(()=>TenantCategory,(category)=>category.tenant_category_id)
     @JoinColumn([
@@ -67,8 +73,6 @@ export class TenantCategory {
     
     @PrimaryColumn()
     tenant_id:number
-    // @PrimaryColumn()
-    // categoryLeafId:string
 
     @PrimaryColumn()
     core_leaf_id:number
@@ -76,6 +80,13 @@ export class TenantCategory {
 
   @Entity()
   export class CoreToMarketplaceMapping{
+
+    @PrimaryGeneratedColumn()
+    core_to_marketplace_id:number
+
+    @Column()
+    status:boolean
+
     @PrimaryColumn()
     core_leaf_id:number
 

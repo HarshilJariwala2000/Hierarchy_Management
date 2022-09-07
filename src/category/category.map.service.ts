@@ -80,17 +80,21 @@ export class CategoryMapService{
 
         tenantToCoreMappingsFromJoin.forEach(async(x)=>{
             tenantToCoreMappings.push({
+                tenantToCoreId:null,
                 tenantCategoryId : x.tenantToMarketplaceMapping_tenant_category_leaf_id,
                 tenant_id : x.tenantToMarketplaceMapping_tenant_id,
-                coreCategoryId : x.coreToMarketplaceMapping_core_leaf_id
+                coreCategoryId : x.coreToMarketplaceMapping_core_leaf_id,
+                status:null
             })
         })
 
         tenantToCoreMappingsFromTable.forEach(async(x)=>{
             tenantToCoreMappings.push({
+                tenantToCoreId: x.tenant_to_core_id,
                 tenantCategoryId : x.tenant_category_leaf_id,
                 tenant_id:x.tenant_id,
-                coreCategoryId : x.core_leaf_id
+                coreCategoryId : x.core_leaf_id,
+                status:x.status
             })
         })
 
@@ -110,48 +114,26 @@ export class CategoryMapService{
 
         coreToMarketplaceMappingsFromJoin.forEach(async(x)=>{
             coreToMarketplaceMappings.push({
+                coreToMarketplaceId : null,
                 coreCategoryId : x.tenantToCoreMapping_core_leaf_id,
                 tenant_id : x.tenant_id,
-                marketplaceCategoryId : x.tenantToMarketplaceMapping_marketplace_leaf_id
+                marketplaceCategoryId : x.tenantToMarketplaceMapping_marketplace_leaf_id,
+                status:null
             })
         })
 
         coreToMarketplaceMappingsFromTable.forEach(async(x)=>{
             coreToMarketplaceMappings.push({
+                coreToMarketplaceId : x.core_to_marketplace_id,
                 coreCategoryId : x.core_leaf_id,
-                tenant_id:x.tenant_id,
-                marketplaceCategoryId:x.marketplace_leaf_id
+                tenant_id : x.tenant_id,
+                marketplaceCategoryId : x.marketplace_leaf_id,
+                status:x.status
             })
         })
 
         return coreToMarketplaceMappings;
-    }
-
-    // async getTenantToMarketplaceMapping(tenantId:number){
-    //     const tenantToMarketplaceMappingsFromJoin = await this.tenantDataSource.getRepository(TenantToCoreMapping).createQueryBuilder("tenantToCoreMapping").
-    //     leftJoinAndSelect(CoreToMarketplaceMapping, "coreToMarketplaceMapping","coreToMarketplaceMapping.core_leaf_id=tenantToCoreMapping.core_leaf_id").
-    //     where("tenantToCoreMapping.tenant_id=:tenant_id",{tenant_id:tenantId}).
-    //     andWhere("coreToMarketplaceMapping.tenant_id=:tenant_id",{tenant_id:tenantId}).getRawMany()
-        
-
-    //     let tenantToMarketplaceMappings = []
-
-    //     // tenantToMarketplaceMappingsFromJoin.forEach(async(x)=>{
-
-    //     // })
-    //     //Output
-    //     // [
-    //     //     {
-    //     //       tenantToCoreMapping_tenant_id: '41c6438b-6e6f-4ee0-bdd2-e8fb3053b332',
-    //     //       tenantToCoreMapping_core_leaf_id: 'c46b577a-fcb2-40e9-b8b1-255975f17f63',
-    //     //       tenantToCoreMapping_tenant_category_leaf_id: 'dd57cb2d-b47c-4958-84e4-20ebbb11f60f',
-    //     //       coreToMarketplaceMapping_core_leaf_id: 'c46b577a-fcb2-40e9-b8b1-255975f17f63',
-    //     //       coreToMarketplaceMapping_marketplace_leaf_id: '1',
-    //     //       coreToMarketplaceMapping_marketplace_name_id: 'dd323ed8-3670-465d-9f6e-d9b72ec6aa24',
-    //     //       coreToMarketplaceMapping_marketplace_name: 'Amazon'
-    //     //     }
-    //     //   ]
-    // }
+    }    
 
     async checkDuplicatesTenantToCore(tenantCategoryLeafId:number,tenantId:number, coreCategoryLeafId:number){
         const tenantToCoreMapExist = await this.tenantDataSource.getRepository(CoreToMarketplaceMapping).createQueryBuilder("coreToMarketplaceMapping").
@@ -164,18 +146,6 @@ export class CategoryMapService{
         const tenantToCoreExist2 = await this.tenantToCoreMappingRepository.find({where:{tenant_category_leaf_id:tenantCategoryLeafId, core_leaf_id:coreCategoryLeafId, tenant_id:tenantId}})
         if(tenantToCoreMapExist || tenantToCoreExist2) throw new RpcException({message:`Mapping Already Exists`, status:6})
         else return false
-    }
-
-    async checkDuplicatesTenantToMarketplace(tenantCategoryLeafId:number, tenantId:number, marketplaceCategoryLeafId:number){
-        const tenantToMarketplaceMapExist = await this.tenantDataSource.getRepository(TenantToCoreMapping).createQueryBuilder("tenantToCoreMapping").
-        leftJoinAndSelect(CoreToMarketplaceMapping, "coreToMarketplaceMapping","coreToMarketplaceMapping.core_leaf_id=tenantToCoreMapping.core_leaf_id").
-        where("tenantToCoreMapping.tenant_category_leaf_id=:tenant_category_leaf_id",{tenant_category_leaf_id:tenantCategoryLeafId}).
-        andWhere("tenantToCoreMapping.tenant_id=:tenant_id",{tenant_id:tenantId}).
-        andWhere("coreToMarketplaceMapping.marketplace_leaf_id=:marketplace_leaf_id",{marketplace_leaf_id:marketplaceCategoryLeafId}).
-        andWhere("coreToMarketplaceMapping.tenant_id=:tenant_id",{tenant_id:tenantId}).
-        getMany()
-        const tenantToMarketplaceExist2 = await this.tenantToMarketplaceMappingRepository.find({where:{tenant_category_leaf_id:tenantCategoryLeafId, tenant_id:tenantId, marketplace_leaf_id:marketplaceCategoryLeafId}})
-        if(tenantToMarketplaceMapExist||tenantToMarketplaceExist2) throw new RpcException({message:`Mapping Already Exists`, status:6})
     }
 
     async checkDuplicatesCoreToMarketplace(coreCategoryId:number, tenantId:number, marketplaceCategoryId:number){
@@ -234,11 +204,13 @@ export class CategoryMapService{
             const tenantPath = await this.getTenantPath(tenantToCoreMappings[i].tenantCategoryId, tenantToCoreMappings[i].tenant_id)
             const corePath = await this.getCorePath(tenantToCoreMappings[i].coreCategoryId)
             displayMappedCategory.push({
+                tenantToCoreId:tenantToCoreMappings[i].tenantToCoreId,
                 merchandisingCategory:tenantPath.slice(0,tenantPath.indexOf('/')),
                 hierarchy:tenantPath.slice(tenantPath.indexOf('/')+1),
                 coreRoot:corePath.slice(0,corePath.indexOf('/')),
                 mappedWithCore:corePath,
-                mappedOn:''
+                mappedOn:'',
+                status:tenantToCoreMappings[i].status
             })
         }
         
@@ -256,12 +228,13 @@ export class CategoryMapService{
             const marketplacePath = await this.getMarketplacePath(coreToMarketplaceMappings[i].marketplaceCategoryId)
             const marketplaceCategory = await this.categoryModifyService.getMarketplaceCategoryById(coreToMarketplaceMappings[i].marketplaceCategoryId)
             displayMappedChannel.push({
+                coreToMarketplaceId:coreToMarketplaceMappings[i].coreToMarketplaceId,
                 mappedCoreCategory:corePath,
                 mappedChannel:marketplaceCategory.marketplace_name,
                 channelCategory:marketplacePath.slice(0,marketplacePath.indexOf('/')), 
                 channelHierarchy:marketplacePath.slice(marketplacePath.indexOf('/')+1),
                 mappedOn:'',
-                status:true
+                status:coreToMarketplaceMappings[i].status
             })
         }
 
@@ -306,6 +279,51 @@ export class CategoryMapService{
 
         return unmappedCoreCategory;
     }
+
+    async changeStatusCoreToMarketplace(coreToMarketplaceId:number, tenantId:number, status:boolean){
+        await this.coreToMarketplaceMappingRepository.update({core_to_marketplace_id:coreToMarketplaceId, tenant_id:tenantId},{status:status})
+    }
+
+    async changeStatusTenantToCore(tenantToCoreId:number, tenantId:number, status:boolean){
+        await this.tenantToCoreMappingRepository.update({tenant_to_core_id:tenantToCoreId, tenant_id:tenantId},{status:status})
+    }
+
+    // async getTenantToMarketplaceMapping(tenantId:number){
+    //     const tenantToMarketplaceMappingsFromJoin = await this.tenantDataSource.getRepository(TenantToCoreMapping).createQueryBuilder("tenantToCoreMapping").
+    //     leftJoinAndSelect(CoreToMarketplaceMapping, "coreToMarketplaceMapping","coreToMarketplaceMapping.core_leaf_id=tenantToCoreMapping.core_leaf_id").
+    //     where("tenantToCoreMapping.tenant_id=:tenant_id",{tenant_id:tenantId}).
+    //     andWhere("coreToMarketplaceMapping.tenant_id=:tenant_id",{tenant_id:tenantId}).getRawMany()
+        
+
+    //     let tenantToMarketplaceMappings = []
+
+    //     // tenantToMarketplaceMappingsFromJoin.forEach(async(x)=>{
+
+    //     // })
+    //     //Output
+    //     // [
+    //     //     {
+    //     //       tenantToCoreMapping_tenant_id: '41c6438b-6e6f-4ee0-bdd2-e8fb3053b332',
+    //     //       tenantToCoreMapping_core_leaf_id: 'c46b577a-fcb2-40e9-b8b1-255975f17f63',
+    //     //       tenantToCoreMapping_tenant_category_leaf_id: 'dd57cb2d-b47c-4958-84e4-20ebbb11f60f',
+    //     //       coreToMarketplaceMapping_core_leaf_id: 'c46b577a-fcb2-40e9-b8b1-255975f17f63',
+    //     //       coreToMarketplaceMapping_marketplace_leaf_id: '1',
+    //     //       coreToMarketplaceMapping_marketplace_name_id: 'dd323ed8-3670-465d-9f6e-d9b72ec6aa24',
+    //     //       coreToMarketplaceMapping_marketplace_name: 'Amazon'
+    //     //     }
+    //     //   ]
+    // }
+// async checkDuplicatesTenantToMarketplace(tenantCategoryLeafId:number, tenantId:number, marketplaceCategoryLeafId:number){
+    //     const tenantToMarketplaceMapExist = await this.tenantDataSource.getRepository(TenantToCoreMapping).createQueryBuilder("tenantToCoreMapping").
+    //     leftJoinAndSelect(CoreToMarketplaceMapping, "coreToMarketplaceMapping","coreToMarketplaceMapping.core_leaf_id=tenantToCoreMapping.core_leaf_id").
+    //     where("tenantToCoreMapping.tenant_category_leaf_id=:tenant_category_leaf_id",{tenant_category_leaf_id:tenantCategoryLeafId}).
+    //     andWhere("tenantToCoreMapping.tenant_id=:tenant_id",{tenant_id:tenantId}).
+    //     andWhere("coreToMarketplaceMapping.marketplace_leaf_id=:marketplace_leaf_id",{marketplace_leaf_id:marketplaceCategoryLeafId}).
+    //     andWhere("coreToMarketplaceMapping.tenant_id=:tenant_id",{tenant_id:tenantId}).
+    //     getMany()
+    //     const tenantToMarketplaceExist2 = await this.tenantToMarketplaceMappingRepository.find({where:{tenant_category_leaf_id:tenantCategoryLeafId, tenant_id:tenantId, marketplace_leaf_id:marketplaceCategoryLeafId}})
+    //     if(tenantToMarketplaceMapExist||tenantToMarketplaceExist2) throw new RpcException({message:`Mapping Already Exists`, status:6})
+    // }
 
 
 
