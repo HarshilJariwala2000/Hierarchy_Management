@@ -13,6 +13,7 @@ const ADDSIBLING:string = "addSibling"
 const CORE:string = "core"
 const MARKETPLACE:string = "marketplace"
 const TENANT:string = "tenant"
+
 interface bulkUploadParentChild{
     categoryName:string,
     parentCategoryName:string
@@ -39,7 +40,7 @@ export class CategoryModifyService {
         @InjectDataSource('tenant') private tenantDataSource: DataSource,
     ) {}
 
-    async getTenantCategoryById(tenantCategoryid:number, tenantId:number){
+    async getTenantCategoryById(tenantCategoryid:number, tenantId:number):Promise<TenantCategory>{
         try{
         const tenantCategory = await this.tenantCategoryRepository.findOne({where:{tenant_category_id:tenantCategoryid, tenant_id:tenantId}, relations:{children:true,parent:true}})
         if(!tenantCategory) throw new RpcException({message:"Category does not exist",status:5})
@@ -49,7 +50,11 @@ export class CategoryModifyService {
         }
     }
 
-    async getCoreCategoryById(coreCategoryid:number){
+    async getTenantCategoryChildren(tenantCategoryid:number, tenantId:number){
+        return (await this.getTenantCategoryById(tenantCategoryid,tenantId)).children
+    }
+
+    async getCoreCategoryById(coreCategoryid:number):Promise<CoreCategory>{
         try{
             const coreCategory = await this.coreCategoryRepository.findOne({where:{core_category_id:coreCategoryid}, relations:{children:true,parent:true}})
             if(!coreCategory) throw new RpcException({message:"Category does not exist",status:5})
@@ -59,7 +64,11 @@ export class CategoryModifyService {
             }
     }
 
-    async getMarketplaceCategoryById(marketplaceCategoryid:number){
+    async getCoreCategoryChildren(coreCategoryid:number){
+        return (await this.getCoreCategoryById(coreCategoryid)).children
+    }
+
+    async getMarketplaceCategoryById(marketplaceCategoryid:number):Promise<MarketplaceCategory>{
         try{
             const marketplaceCategory = await this.marketplaceCategoryRepository.findOne({where:{marketplace_category_id:marketplaceCategoryid}, relations:{children:true,parent:true}})
             if(!marketplaceCategory) throw new RpcException({message:"Category does not exist",status:5})
@@ -69,13 +78,17 @@ export class CategoryModifyService {
             }
     }
 
-    async canAddLevel(depth:number, tenantId:number){
+    async getMarketplaceCategoryChildren(marketplaceCategoryid:number){
+        return (await this.getMarketplaceCategoryById(marketplaceCategoryid)).children
+    }
+
+    async canAddLevel(depth:number, tenantId:number):Promise<boolean>{
         const levelLimit = await this.tenantHierarchyLevelRepository.findOne({ where: { tenant_id:tenantId } })
         if (depth + 1 >= levelLimit.level) return false
         else return true
     }
 
-    async saveCategory(entityManager:EntityManager, tenantId:number, categoryName:string, parent:TenantCategory | number, depth?:number, isLeaf?:boolean){
+    async saveCategory(entityManager:EntityManager, tenantId:number, categoryName:string, parent:TenantCategory | number, depth?:number, isLeaf?:boolean):Promise<TenantCategory>{
         const category = new TenantCategory()
         category.category_name = categoryName
         category.tenant_id = tenantId
@@ -87,62 +100,6 @@ export class CategoryModifyService {
     }
 
     async check(){
-        const data = {
-            0:["Electronics9"],
-            1:["Electronics9","Audio9"],
-            2:["Electronics9","Audio9","Bluetooth9"],
-            3:["Electronics9","Audio9","Wired9"],
-            4:["Electronics9","Gaming9"],
-            5:["Electronics9","Gaming9","Keyboard9"],
-            6:["Electronics9","Gaming9","Mouse9"],
-            7:["Fashion9"],
-            8:["Fashion9","Men9"],
-            9:["Fashion9","Men9","Jeans9"],
-            10:["Fashion9","Men9","Shirt9"],
-            11:["Fashion9","Women9"],
-            12:["Fashion9","Women9","Bottom9"],
-            13:["Fashion9","Women9","Top9"]
-        }
-        // console.log(data2.sort())
-        let sameParentLevel:number = 0
-        let ids:number[] = [null];
-        let flag = 0;
-        for(let i=0; i<Object.keys(data).length; i++){
-            console.log('i='+i+'\n')
-            console.log('before sameParentLevel='+sameParentLevel+'\n')
-            if(sameParentLevel===0) ids = [null]
-            if(i!=0) {
-                let k=0
-                while(data[i][sameParentLevel-1]!=data[i-1][sameParentLevel-1]){ 
-                    console.log("Indside -- Loop "+data[i][sameParentLevel-1]+" : "+data[i-1][sameParentLevel-1])
-                    sameParentLevel--
-                    ids.pop()
-                }
-                while(data[i][sameParentLevel]===data[i-1][sameParentLevel]){
-                    console.log("Indside ++ Loop "+data[i][sameParentLevel]+" : "+data[i-1][sameParentLevel])
-                    sameParentLevel++
-                }
-            }
-            console.log('ids='+ids+'\n')
-            console.log('after sameParentLevel='+sameParentLevel+'\n')
-            for(let j=sameParentLevel; j<data[i].length; j++){
-                const x = new TenantCategory()
-                x.category_name = data[i][j]
-                x.parent_id = ids[j]
-                x.depth = j
-                x.tenant_id = 4
-                if(j===data[i].length-1) x.is_leaf=true
-                else x.is_leaf = false
-                const saved = await this.tenantCategoryRepository.save(x)
-                
-                    if(j!=data[i].length-1){
-                        ids.push(saved.tenant_category_id) 
-                    }
-                console.log(saved.tenant_category_id+" : "+saved.category_name+" : "+saved.parent_id+'\n')
-            }
-            if(sameParentLevel===0) sameParentLevel = data[i].length-1
-
-        }
     }
 
     async changeIsLeafToFalse(entityManager:EntityManager, category:TenantCategory){
@@ -214,8 +171,7 @@ export class CategoryModifyService {
         const maxTenantLevel = await this.maxCategoryDepth(tenantId)
         if(maxTenantLevel>level) throw new RpcException({message:`Tenant already have maximum level of ${maxTenantLevel.max+1}`,status:9})
         const tenantHierarchyLevel:TenantHierarchyLevel = {tenant_id:tenantId,level:level}
-        await this.tenantHierarchyLevelRepository.save(tenantHierarchyLevel)
-        
+        await this.tenantHierarchyLevelRepository.save(tenantHierarchyLevel) 
     }
 
     async subscribeToMarketplaces(marketplaceNameId:number, tenantId:number){
@@ -315,6 +271,7 @@ export class CategoryModifyService {
 
     }
 
+    //Have to Add Duplicacy Check
     async bulkUploadCategoryPathTemaplate(data:bulkUploadPath[], tenantId:number){
         let category2DArray = {}
         let pathArray = data.map(x=>x['Full Hierarchy'])
@@ -359,17 +316,5 @@ export class CategoryModifyService {
             if(sameParentLevel===0) sameParentLevel = category2DArrayWithSubArraysRemoved[i].length-1
         }       
     }
-
-    async getPathFromExcel(categoryName:bulkUploadParentChild[], data:bulkUploadParentChild[]){
-        const pathArray = [];
-
-    }
-
-    async bulkUploadCategoryParentChildTemplate(data:bulkUploadParentChild[]){
-
-    }
-
-
-
 
 }

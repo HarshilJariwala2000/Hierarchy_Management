@@ -6,6 +6,7 @@ import { TenantCategory, SubscribedMarketplaces, TenantHierarchyLevel,  TenantTo
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {CoreCategory} from '../entities/core.category.entity';
 import { CategoryMapService } from './category.map.service';
+import { CategoryGrpcController } from './category.grpc.controller';
 
 @Module({
   imports:[
@@ -13,7 +14,7 @@ import { CategoryMapService } from './category.map.service';
     TypeOrmModule.forFeature([MarketplaceCategory, Marketplaces],'marketplace'),
     TypeOrmModule.forFeature([ TenantCategory, SubscribedMarketplaces, TenantHierarchyLevel,  TenantToCoreMapping, CoreToMarketplaceMapping, TenantToMarketplaceMapping],'tenant'),
   ],
-  controllers: [CategoryController],
+  controllers: [CategoryController, CategoryGrpcController],
   providers: [CategoryModifyService, CategoryMapService]
 })
 export class CategoryModule {}
